@@ -7,11 +7,11 @@ use std::{
     ffi::{c_void, CString},
     fs::File,
     io,
-    os::unix::{ffi::OsStrExt, io::FromRawFd},
     path::Path,
     ptr,
     sync::Arc,
 };
+use std::ffi::OsString;
 
 #[derive(Debug)]
 pub struct Mount {
@@ -19,7 +19,8 @@ pub struct Mount {
 }
 impl Mount {
     pub fn new(mnt: &Path, options: &[MountOption]) -> io::Result<(Arc<File>, Mount)> {
-        let mnt = CString::new(mnt.as_os_str().as_bytes()).unwrap();
+        #[cfg(unix)] let mnt = CString::new(mnt.as_os_str().as_bytes()).unwrap();
+        #[cfg(windows)] let mnt = CString::new(mnt.to_string_lossy().as_bytes()).unwrap();
         with_fuse_args(options, |args| {
             let fuse_session = unsafe { fuse_session_new(args, ptr::null(), 0, ptr::null_mut()) };
             if fuse_session.is_null() {
@@ -34,14 +35,36 @@ impl Mount {
             if fd < 0 {
                 return Err(io::Error::last_os_error());
             }
-            // We dup the fd here as the existing fd is owned by the fuse_session, and we
-            // don't want it being closed out from under us:
-            let fd = unsafe { libc::dup(fd) };
-            if fd < 0 {
-                return Err(io::Error::last_os_error());
+            #[cfg(unix)] {
+                use std::os::unix::io::FromRawFd;
+                // We dup the fd here as the existing fd is owned by the fuse_session, and we
+                // don't want it being closed out from under us:
+                let handle = unsafe { libc::dup(fd) };
+                if fd < 0 {
+                    return Err(io::Error::last_os_error());
+                }
+                let file = unsafe { File::from_raw_fd(fd) };
+                Ok((Arc::new(file), mount))
             }
-            let file = unsafe { File::from_raw_fd(fd) };
-            Ok((Arc::new(file), mount))
+            #[cfg(windows)] {
+                use windows::Win32::Foundation::PWSTR;
+                use windows::Win32::Storage::FileSystem::GetFinalPathNameByHandleW;
+                use std::fs::OpenOptions;
+                use std::os::windows::ffi::OsStringExt;
+                use std::mem::transmute;
+                use windows::Win32::Foundation::HANDLE;
+
+                let handle = unsafe { libc::get_osfhandle(fd) };
+                let mut path_name_buf = vec![0u16; 512];
+                let ptr = PWSTR(path_name_buf.as_mut_ptr());
+                let read = unsafe { GetFinalPathNameByHandleW(transmute::<_, HANDLE>(handle), ptr, 512, 0) };
+                if read == 0 {
+                    return Err(io::Error::last_os_error());
+                }
+                let path = OsString::from_wide(&path_name_buf[..(read as usize)]);
+                let file = OpenOptions::new().read(true).write(true).open(path)?;
+                Ok((Arc::new(file), mount))
+            }
         })
     }
 }

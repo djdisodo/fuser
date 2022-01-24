@@ -3,8 +3,12 @@
 //! Helper to decompose a slice of binary data (incoming FUSE request) into multiple data
 //! structures (request arguments).
 
-use std::ffi::OsStr;
+use std::borrow::Cow;
+use std::ffi::{OsStr, OsString};
+#[cfg(unix)]
 use std::os::unix::ffi::OsStrExt;
+#[cfg(windows)]
+use std::os::windows::ffi::OsStringExt;
 
 /// An iterator that can be used to fetch typed arguments from a byte slice.
 pub struct ArgumentIterator<'a> {
@@ -74,11 +78,16 @@ impl<'a> ArgumentIterator<'a> {
 
     /// Fetch a (zero-terminated) string (can be non-utf8). Returns `None` if there's not enough
     /// data left or no zero-termination could be found.
-    pub fn fetch_str(&mut self) -> Option<&'a OsStr> {
+    pub fn fetch_str(&mut self) -> Option<Cow<'a, OsStr>> {
         let len = memchr::memchr(0, self.data)?;
         let (out, rest) = self.data.split_at(len);
-        self.data = &rest[1..];
-        Some(OsStr::from_bytes(out))
+        #[cfg(unix)] {
+            Some(Cow::Borrowed(OsStr::from_bytes(out)))
+        }
+        #[cfg(windows)] {
+            let utf16: Vec<u16> = String::from_utf8_lossy(out).encode_utf16().collect();
+            Some(Cow::Owned(OsString::from_wide(&utf16)))
+        }
     }
 }
 

@@ -282,6 +282,7 @@ mod op {
         path::Path,
         time::{Duration, SystemTime},
     };
+    use std::borrow::Cow;
     use zerocopy::AsBytes;
 
     /// Look up a directory entry by name and get its attributes.
@@ -292,11 +293,11 @@ mod op {
     #[derive(Debug)]
     pub struct Lookup<'a> {
         header: &'a fuse_in_header,
-        name: &'a OsStr,
+        name: Cow<'a, OsStr>,
     }
     impl_request!(Lookup<'_>);
     impl<'a> Lookup<'a> {
-        pub fn name(&self) -> &'a Path {
+        pub fn name(&'a self) -> &'a Path {
             self.name.as_ref()
         }
     }
@@ -489,16 +490,16 @@ mod op {
     #[derive(Debug)]
     pub struct SymLink<'a> {
         header: &'a fuse_in_header,
-        target: &'a Path,
-        link: &'a Path,
+        target: Cow<'a, OsStr>,
+        link: Cow<'a, OsStr>,
     }
     impl_request!(SymLink<'_>);
     impl<'a> SymLink<'a> {
-        pub fn target(&self) -> &'a Path {
-            self.target
+        pub fn target(&'a self) -> &'a Path {
+            self.target.as_ref()
         }
-        pub fn link(&self) -> &'a Path {
-            self.link
+        pub fn link(&'a self) -> &'a Path {
+            self.link.as_ref()
         }
     }
 
@@ -508,12 +509,12 @@ mod op {
     pub struct MkNod<'a> {
         header: &'a fuse_in_header,
         arg: &'a fuse_mknod_in,
-        name: &'a Path,
+        name: Cow<'a, OsStr>,
     }
     impl_request!(MkNod<'_>);
     impl<'a> MkNod<'a> {
-        pub fn name(&self) -> &'a Path {
-            self.name
+        pub fn name(&'a self) -> &'a Path {
+            self.name.as_ref()
         }
         pub fn mode(&self) -> u32 {
             self.arg.mode
@@ -534,12 +535,12 @@ mod op {
     pub struct MkDir<'a> {
         header: &'a fuse_in_header,
         arg: &'a fuse_mkdir_in,
-        name: &'a Path,
+        name: Cow<'a, OsStr>,
     }
     impl_request!(MkDir<'_>);
     impl<'a> MkDir<'a> {
-        pub fn name(&self) -> &'a Path {
-            self.name
+        pub fn name(&'a self) -> &'a Path {
+            self.name.as_ref()
         }
         pub fn mode(&self) -> u32 {
             self.arg.mode
@@ -556,12 +557,12 @@ mod op {
     #[derive(Debug)]
     pub struct Unlink<'a> {
         header: &'a fuse_in_header,
-        name: &'a Path,
+        name: Cow<'a, OsStr>,
     }
     impl_request!(Unlink<'_>);
     impl<'a> Unlink<'a> {
-        pub fn name(&self) -> &'a Path {
-            self.name
+        pub fn name(&'a self) -> &'a Path {
+            self.name.as_ref()
         }
     }
 
@@ -569,12 +570,12 @@ mod op {
     #[derive(Debug)]
     pub struct RmDir<'a> {
         header: &'a fuse_in_header,
-        pub name: &'a Path,
+        pub name: Cow<'a, OsStr>,
     }
     impl_request!(RmDir<'_>);
     impl<'a> RmDir<'a> {
-        pub fn name(&self) -> &'a Path {
-            self.name
+        pub fn name(&'a self) -> &'a Path {
+            self.name.as_ref()
         }
     }
 
@@ -583,21 +584,21 @@ mod op {
     pub struct Rename<'a> {
         header: &'a fuse_in_header,
         arg: &'a fuse_rename_in,
-        name: &'a Path,
-        newname: &'a Path,
+        name: Cow<'a, OsStr>,
+        newname: Cow<'a, OsStr>,
     }
     impl_request!(Rename<'_>);
     impl<'a> Rename<'a> {
-        pub fn src(&self) -> FilenameInDir<'a> {
+        pub fn src(&'a self) -> FilenameInDir<'a> {
             FilenameInDir::<'a> {
                 dir: self.nodeid(),
-                name: self.name,
+                name: self.name.as_ref(),
             }
         }
-        pub fn dest(&self) -> FilenameInDir<'a> {
+        pub fn dest(&'a self) -> FilenameInDir<'a> {
             FilenameInDir::<'a> {
                 dir: INodeNo(self.arg.newdir),
-                name: self.newname,
+                name: self.newname.as_ref(),
             }
         }
     }
@@ -607,7 +608,7 @@ mod op {
     pub struct Link<'a> {
         header: &'a fuse_in_header,
         arg: &'a fuse_link_in,
-        name: &'a Path,
+        name: Cow<'a, OsStr>,
     }
     impl_request!(Link<'_>);
     impl<'a> Link<'a> {
@@ -616,10 +617,10 @@ mod op {
         pub fn inode_no(&self) -> INodeNo {
             INodeNo(self.arg.oldnodeid)
         }
-        pub fn dest(&self) -> FilenameInDir<'a> {
+        pub fn dest(&'a self) -> FilenameInDir<'a> {
             FilenameInDir::<'a> {
                 dir: self.nodeid(),
-                name: self.name,
+                name: self.name.as_ref(),
             }
         }
     }
@@ -810,13 +811,13 @@ mod op {
     pub struct SetXAttr<'a> {
         header: &'a fuse_in_header,
         arg: &'a fuse_setxattr_in,
-        name: &'a OsStr,
+        name: Cow<'a, OsStr>,
         value: &'a [u8],
     }
     impl_request!(SetXAttr<'a>);
     impl<'a> SetXAttr<'a> {
-        pub fn name(&self) -> &'a OsStr {
-            self.name
+        pub fn name(&'a self) -> &'a OsStr {
+            self.name.as_ref()
         }
         pub fn value(&self) -> &'a [u8] {
             self.value
@@ -843,7 +844,7 @@ mod op {
     pub struct GetXAttr<'a> {
         header: &'a fuse_in_header,
         arg: &'a fuse_getxattr_in,
-        name: &'a OsStr,
+        name: Cow<'a, OsStr>,
     }
     impl_request!(GetXAttr<'a>);
 
@@ -864,8 +865,8 @@ mod op {
     }
     impl<'a> GetXAttr<'a> {
         /// Name of the XAttr
-        pub fn name(&self) -> &'a OsStr {
-            self.name
+        pub fn name(&'a self) -> &'a OsStr {
+            self.name.as_ref()
         }
         /// See [GetXAttrSizeEnum].
         ///
@@ -911,13 +912,13 @@ mod op {
     #[derive(Debug)]
     pub struct RemoveXAttr<'a> {
         header: &'a fuse_in_header,
-        name: &'a OsStr,
+        name: Cow<'a, OsStr>,
     }
     impl_request!(RemoveXAttr<'a>);
     impl<'a> RemoveXAttr<'a> {
         /// Name of the XAttr to remove
-        pub fn name(&self) -> &'a OsStr {
-            self.name
+        pub fn name(&'a self) -> &'a OsStr {
+            self.name.as_ref()
         }
     }
 
@@ -1183,12 +1184,12 @@ mod op {
     pub struct Create<'a> {
         header: &'a fuse_in_header,
         arg: &'a fuse_create_in,
-        name: &'a Path,
+        name: Cow<'a, OsStr>,
     }
     impl_request!(Create<'a>);
     impl<'a> Create<'a> {
-        pub fn name(&self) -> &'a Path {
-            self.name
+        pub fn name(&'a self) -> &'a Path {
+            self.name.as_ref()
         }
         pub fn mode(&self) -> u32 {
             self.arg.mode
@@ -1622,37 +1623,37 @@ mod op {
             fuse_opcode::FUSE_READLINK => Operation::ReadLink(ReadLink { header }),
             fuse_opcode::FUSE_SYMLINK => Operation::SymLink(SymLink {
                 header,
-                target: data.fetch_str()?.as_ref(),
-                link: data.fetch_str()?.as_ref(),
+                target: data.fetch_str()?,
+                link: data.fetch_str()?,
             }),
             fuse_opcode::FUSE_MKNOD => Operation::MkNod(MkNod {
                 header,
                 arg: data.fetch()?,
-                name: data.fetch_str()?.as_ref(),
+                name: data.fetch_str()?,
             }),
             fuse_opcode::FUSE_MKDIR => Operation::MkDir(MkDir {
                 header,
                 arg: data.fetch()?,
-                name: data.fetch_str()?.as_ref(),
+                name: data.fetch_str()?,
             }),
             fuse_opcode::FUSE_UNLINK => Operation::Unlink(Unlink {
                 header,
-                name: data.fetch_str()?.as_ref(),
+                name: data.fetch_str()?,
             }),
             fuse_opcode::FUSE_RMDIR => Operation::RmDir(RmDir {
                 header,
-                name: data.fetch_str()?.as_ref(),
+                name: data.fetch_str()?,
             }),
             fuse_opcode::FUSE_RENAME => Operation::Rename(Rename {
                 header,
                 arg: data.fetch()?,
-                name: data.fetch_str()?.as_ref(),
-                newname: data.fetch_str()?.as_ref(),
+                name: data.fetch_str()?,
+                newname: data.fetch_str()?,
             }),
             fuse_opcode::FUSE_LINK => Operation::Link(Link {
                 header,
                 arg: data.fetch()?,
-                name: data.fetch_str()?.as_ref(),
+                name: data.fetch_str()?,
             }),
             fuse_opcode::FUSE_OPEN => Operation::Open(Open {
                 header,
@@ -1746,7 +1747,7 @@ mod op {
             fuse_opcode::FUSE_CREATE => Operation::Create(Create {
                 header,
                 arg: data.fetch()?,
-                name: data.fetch_str()?.as_ref(),
+                name: data.fetch_str()?,
             }),
             fuse_opcode::FUSE_INTERRUPT => Operation::Interrupt(Interrupt {
                 header,

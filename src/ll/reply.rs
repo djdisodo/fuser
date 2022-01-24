@@ -2,7 +2,6 @@ use std::{
     convert::TryInto,
     io::IoSlice,
     mem::size_of,
-    os::unix::prelude::OsStrExt,
     path::Path,
     time::{Duration, SystemTime, UNIX_EPOCH},
 };
@@ -255,13 +254,13 @@ pub(crate) fn time_from_system_time(system_time: &SystemTime) -> (i64, u32) {
 /// Returns the mode for a given file kind and permission
 pub(crate) fn mode_from_kind_and_perm(kind: FileType, perm: u16) -> u32 {
     (match kind {
-        FileType::NamedPipe => libc::S_IFIFO,
-        FileType::CharDevice => libc::S_IFCHR,
-        FileType::BlockDevice => libc::S_IFBLK,
+        FileType::NamedPipe => 4096 /* libc::S_IFIFO */,
+        FileType::CharDevice => 24567 /* libc::S_IFCHR */,
+        FileType::BlockDevice => 24576 /* libc::S_IFBLK */,
         FileType::Directory => libc::S_IFDIR,
         FileType::RegularFile => libc::S_IFREG,
-        FileType::Symlink => libc::S_IFLNK,
-        FileType::Socket => libc::S_IFSOCK,
+        FileType::Symlink => 40960 /* libc::S_IFLNK */,
+        FileType::Socket => 49152 /* libc::S_IFSOCK */,
     }) as u32
         | perm as u32
 }
@@ -398,7 +397,9 @@ impl DirEntList {
     /// value to request the next entries in further readdir calls
     #[must_use]
     pub fn push<T: AsRef<Path>>(&mut self, ent: &DirEntry<T>) -> bool {
-        let name = ent.name.as_ref().as_os_str().as_bytes();
+        #[cfg(unix)] let name = ent.name.as_ref().as_os_str().as_bytes();
+        #[cfg(windows)] let _name = ent.name.as_ref().as_os_str().to_string_lossy();
+        #[cfg(windows)] let name = _name.as_bytes();
         let header = abi::fuse_dirent {
             ino: ent.ino.into(),
             off: ent.offset.0,
@@ -461,7 +462,9 @@ impl DirEntPlusList {
     /// value to request the next entries in further readdir calls
     #[must_use]
     pub fn push<T: AsRef<Path>>(&mut self, x: &DirEntryPlus<T>) -> bool {
-        let name = x.name.as_ref().as_os_str().as_bytes();
+        #[cfg(unix)] let name = x.name.as_ref().as_os_str().as_bytes();
+        #[cfg(windows)] let _name = x.name.as_ref().as_os_str().to_string_lossy();
+        #[cfg(windows)] let name = _name.as_bytes();
         let header = abi::fuse_direntplus {
             entry_out: abi::fuse_entry_out {
                 nodeid: x.attr.attr.ino,

@@ -69,6 +69,7 @@ impl Errno {
     /// Bad address
     pub const EFAULT: Errno = errno!(libc::EFAULT);
     /// Block device required
+    #[cfg(unix)]
     pub const ENOTBLK: Errno = errno!(libc::ENOTBLK);
     /// Device or resource busy
     pub const EBUSY: Errno = errno!(libc::EBUSY);
@@ -127,12 +128,14 @@ impl Errno {
     /// Identifier removed
     pub const EIDRM: Errno = errno!(libc::EIDRM);
     /// Object is remote
+    #[cfg(unix)]
     pub const EREMOTE: Errno = errno!(libc::EREMOTE);
     /// Link has been severed
     pub const ENOLINK: Errno = errno!(libc::ENOLINK);
     /// Protocol error
     pub const EPROTO: Errno = errno!(libc::EPROTO);
     /// Multihop attempted
+    #[cfg(unix)]
     pub const EMULTIHOP: Errno = errno!(libc::EMULTIHOP);
     /// Bad message
     pub const EBADMSG: Errno = errno!(libc::EBADMSG);
@@ -141,6 +144,7 @@ impl Errno {
     /// Invalid or incomplete multibyte or wide character
     pub const EILSEQ: Errno = errno!(libc::EILSEQ);
     /// Too many users
+    #[cfg(unix)]
     pub const EUSERS: Errno = errno!(libc::EUSERS);
     /// Socket operation on non-socket
     pub const ENOTSOCK: Errno = errno!(libc::ENOTSOCK);
@@ -155,10 +159,12 @@ impl Errno {
     /// Protocol not supported
     pub const EPROTONOSUPPORT: Errno = errno!(libc::EPROTONOSUPPORT);
     /// Socket type not supported
+    #[cfg(unix)]
     pub const ESOCKTNOSUPPORT: Errno = errno!(libc::ESOCKTNOSUPPORT);
     /// Operation not supported
     pub const EOPNOTSUPP: Errno = errno!(libc::EOPNOTSUPP);
     /// Protocol family not supported
+    #[cfg(unix)]
     pub const EPFNOSUPPORT: Errno = errno!(libc::EPFNOSUPPORT);
     /// Address family not supported by protocol
     pub const EAFNOSUPPORT: Errno = errno!(libc::EAFNOSUPPORT);
@@ -183,14 +189,17 @@ impl Errno {
     /// Transport endpoint is not connected
     pub const ENOTCONN: Errno = errno!(libc::ENOTCONN);
     /// Cannot send after transport endpoint shutdown
+    #[cfg(unix)]
     pub const ESHUTDOWN: Errno = errno!(libc::ESHUTDOWN);
     /// Too many references: cannot splice
+    #[cfg(unix)]
     pub const ETOOMANYREFS: Errno = errno!(libc::ETOOMANYREFS);
     /// Connection timed out
     pub const ETIMEDOUT: Errno = errno!(libc::ETIMEDOUT);
     /// Connection refused
     pub const ECONNREFUSED: Errno = errno!(libc::ECONNREFUSED);
     /// Host is down
+    #[cfg(unix)]
     pub const EHOSTDOWN: Errno = errno!(libc::EHOSTDOWN);
     /// No route to host
     pub const EHOSTUNREACH: Errno = errno!(libc::EHOSTUNREACH);
@@ -199,8 +208,10 @@ impl Errno {
     /// Operation now in progress
     pub const EINPROGRESS: Errno = errno!(libc::EINPROGRESS);
     /// Stale file handle
+    #[cfg(unix)]
     pub const ESTALE: Errno = errno!(libc::ESTALE);
     /// Disk quota exceeded
+    #[cfg(unix)]
     pub const EDQUOT: Errno = errno!(libc::EDQUOT);
     /// Operation cancelled
     pub const ECANCELED: Errno = errno!(libc::ECANCELED);
@@ -212,16 +223,18 @@ impl Errno {
     pub const ENOTSUP: Errno = errno!(libc::ENOTSUP);
 
     /// No data available
-    #[cfg(target_os = "linux")]
+    #[cfg(any(target_os = "linux", windows))]
     pub const ENODATA: Errno = errno!(libc::ENODATA);
     /// Attribute not found
+    #[cfg(unix)]
     #[cfg(not(target_os = "linux"))]
     pub const ENOATTR: Errno = errno!(libc::ENOATTR);
 
     /// Use this as an error return from getxattr/removexattr to indicate that the xattr doesn't
     /// exist.  This resolves to the appropriate platform specific error code.
-    #[cfg(target_os = "linux")]
+    #[cfg(any(target_os = "linux", windows))]
     pub const NO_XATTR: Errno = Self::ENODATA;
+    #[cfg(unix)]
     #[cfg(not(target_os = "linux"))]
     pub const NO_XATTR: Errno = Self::ENOATTR;
 

@@ -98,7 +98,10 @@ impl<FS: Filesystem> Session<FS> {
             mount: Some(mount),
             mountpoint: mountpoint.to_owned(),
             allowed,
+            #[cfg(unix)]
             session_owner: unsafe { libc::geteuid() },
+            #[cfg(windows)]
+            session_owner: 0,
             proto_major: 0,
             proto_minor: 0,
             initialized: false,

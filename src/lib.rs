@@ -6,6 +6,8 @@
 
 #![warn(missing_docs, missing_debug_implementations, rust_2018_idioms)]
 
+extern crate core;
+
 use libc::{c_int, ENOSYS, EPERM};
 use log::{debug, warn};
 use mnt::mount_options::parse_options_from_args;

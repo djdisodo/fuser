@@ -34,9 +34,9 @@ pub struct Mount {
     fuse_device: Arc<File>,
 }
 impl Mount {
-    pub fn new(mountpoint: &Path, options: &[MountOption]) -> io::Result<(Arc<File>, Mount)> {
+    pub fn new<P: AsRef<Path>>(mountpoint: &Path, options: &[MountOption], dev: P) -> io::Result<(Arc<File>, Mount)> {
         let mountpoint = mountpoint.canonicalize()?;
-        let (file, sock) = fuse_mount_pure(mountpoint.as_os_str(), options)?;
+        let (file, sock) = fuse_mount_pure(mountpoint.as_os_str(), options, dev)?;
         let file = Arc::new(file);
         Ok((
             file.clone(),
@@ -75,16 +75,17 @@ impl Drop for Mount {
     }
 }
 
-fn fuse_mount_pure(
+fn fuse_mount_pure<P: AsRef<Path>>(
     mountpoint: &OsStr,
     options: &[MountOption],
+    dev: P
 ) -> Result<(File, Option<UnixStream>), io::Error> {
     if options.contains(&MountOption::AutoUnmount) {
         // Auto unmount is only supported via fusermount
         return fuse_mount_fusermount(mountpoint, options);
     }
 
-    let res = fuse_mount_sys(mountpoint, options)?;
+    let res = fuse_mount_sys(mountpoint, options, dev)?;
     if let Some(file) = res {
         Ok((file, None))
     } else {
@@ -312,10 +313,7 @@ fn fuse_mount_fusermount(
 }
 
 // If returned option is none. Then fusermount binary should be tried
-fn fuse_mount_sys(mountpoint: &OsStr, options: &[MountOption]) -> Result<Option<File>, Error> {
-    let fuse_device_name = "/dev/fuse";
-
-    let mountpoint_mode = File::open(mountpoint)?.metadata()?.permissions().mode();
+fn fuse_mount_sys<P: AsRef<Path>>(mountpoint: &OsStr, options: &[MountOption], device: P) -> Result<Option<File>, Error> {
 
     // Auto unmount requests must be sent to fusermount binary
     assert!(!options.contains(&MountOption::AutoUnmount));
@@ -323,7 +321,7 @@ fn fuse_mount_sys(mountpoint: &OsStr, options: &[MountOption]) -> Result<Option<
     let file = match OpenOptions::new()
         .read(true)
         .write(true)
-        .open(fuse_device_name)
+        .open(&device)
     {
         Ok(file) => file,
         Err(error) => {
@@ -333,19 +331,25 @@ fn fuse_mount_sys(mountpoint: &OsStr, options: &[MountOption]) -> Result<Option<
             return Err(error);
         }
     };
-    assert!(
-        file.as_raw_fd() > 2,
-        "Conflict with stdin/stdout/stderr. fd={}",
-        file.as_raw_fd()
-    );
 
-    let mut mount_options = format!(
-        "fd={},rootmode={:o},user_id={},group_id={}",
-        file.as_raw_fd(),
-        mountpoint_mode,
-        users::get_current_uid(),
-        users::get_current_gid()
-    );
+    #[cfg(unix)]
+    let mount_options = {
+        assert!(
+            file.as_raw_fd() > 2,
+            "Conflict with stdin/stdout/stderr. fd={}",
+            file.as_raw_fd()
+        );
+
+        format!(
+            "fd={},rootmode={:o}",
+            file.as_raw_fd(),
+            mountpoint_mode,
+        )
+    }
+
+    #[cfg(windows)]
+    let mount_options = format!();
+
 
     for option in options
         .iter()
@@ -426,6 +430,8 @@ fn fuse_mount_sys(mountpoint: &OsStr, options: &[MountOption]) -> Result<Option<
                 c_options.as_ptr() as *mut libc::c_void,
             )
         }
+        #[cfg(windows)]
+        0 //todo fix windows
     };
     if result == -1 {
         let err = Error::last_os_error();
