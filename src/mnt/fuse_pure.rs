@@ -341,11 +341,13 @@ fn fuse_mount_sys<P: AsRef<Path>>(mountpoint: &OsStr, options: &[MountOption], d
         );
 
         format!(
-            "fd={},rootmode={:o}",
+            "fd={},rootmode={:o},user_id={},group_id={}",
             file.as_raw_fd(),
             mountpoint_mode,
+            users::get_current_uid(),
+            users::get_current_gid()
         )
-    }
+    };
 
     #[cfg(windows)]
     let mount_options = format!();

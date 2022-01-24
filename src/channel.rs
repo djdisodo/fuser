@@ -6,7 +6,7 @@ use std::{os::windows::io::AsRawHandle, ptr::null_mut, mem::transmute};
 #[cfg(windows)]
 use windows::Win32::Foundation::HANDLE;
 
-use libc::{c_int, c_void, size_t};
+use libc::c_void;
 use zerocopy::AsBytes;
 
 use crate::reply::ReplySender;
@@ -27,15 +27,17 @@ impl Channel {
     pub fn receive(&self, buffer: &mut [u8]) -> io::Result<usize> {
         let rc = unsafe {
             let buf_ptr = buffer.as_mut_ptr() as *mut c_void;
-            #[cfg(unix)] libc::read(
-                self.0.as_raw_fd(),
-                buf_ptr,
-                buffer.len() as _,
-            );
+            #[cfg(unix)] {
+                libc::read(
+                    self.0.as_raw_fd(),
+                    buf_ptr,
+                    buffer.len() as _,
+                )
+            }
             #[cfg(windows)] {
                 let mut read: u32 = 0;
                 if windows::Win32::Storage::FileSystem::ReadFile(
-                    unsafe { transmute::<_, HANDLE>(self.0.as_raw_handle()) },
+                    transmute::<_, HANDLE>(self.0.as_raw_handle()),
                     buf_ptr,
                     buffer.len() as _,
                     &mut read as _,
@@ -93,7 +95,7 @@ impl ReplySender for ChannelSender {
                 }
                 let mut wrote: u32 = 0;
                 if WriteFile(
-                    unsafe { transmute::<_, HANDLE>(self.0.as_raw_handle()) },
+                    transmute::<_, HANDLE>(self.0.as_raw_handle()),
                     buf.as_ptr() as *const c_void,
                     buf.len() as u32,
                     &mut wrote as _,

@@ -80,7 +80,7 @@ impl<'a> ArgumentIterator<'a> {
     /// data left or no zero-termination could be found.
     pub fn fetch_str(&mut self) -> Option<Cow<'a, OsStr>> {
         let len = memchr::memchr(0, self.data)?;
-        let (out, rest) = self.data.split_at(len);
+        let (out, _rest) = self.data.split_at(len);
         #[cfg(unix)] {
             Some(Cow::Borrowed(OsStr::from_bytes(out)))
         }
